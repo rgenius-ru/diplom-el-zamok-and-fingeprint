@@ -7,84 +7,118 @@
 
 //****************************** Объекты *******************************************************************
 //объявляется объект типа LiquidCrystalRus с определёнными параметрами (пины LCD -> Arduino)
-LiquidCrystalRus lcd(4, 5, 10, 11, 12, 13); 
+LiquidCrystalRus myLCD(4, 5, 10, 11, 12, 13); 
 
 //объявляется объект типа SoftwareSerial с параметрами (Rx, Tx). Можно указывать любые выводы, 
 //поддерживающие прерывание PCINTx
-SoftwareSerial mySerial(2, 3);        
+SoftwareSerial myUART(2, 3);        
+
+//объявляется объект типа SoftwareSerial с параметрами (Rx, Tx). Можно указывать любые выводы, 
+//поддерживающие прерывание PCINTx
+SoftwareSerial myBluetooth(A0, A1);   
 
 // объявляется объект типа Adafruit_Fingerprint (ptrSerial). ptrSerial - ссылка на объект UART 
 //к которому подключен модуль отпечатка пальцев
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&myUART);
 //**********************************************************************************************************
 
-//***************************** Глобальные константы и переменные ******************************************
-const uint8_t  PIN_G_OPEN    = A4;// указываем номер вывода arduino, к которому подключен  зелёный светодиод
-const uint8_t  PIN_B_CLOSED  = A3;// указываем номер вывода arduino, к которому подключен  красный светодиод
-const uint8_t  PIN_beep_OPEN   = 6;// указываем номер вывода arduino, к которому подключен  Trema зуммер
-const uint8_t  PIN_key_OPEN    = A5;// указываем номер вывода arduino, к которому подключен  Trema ключ
-const uint8_t  PIN_button_A    = 8;// указываем номер вывода arduino, к которому подключена кнопка A
-const uint8_t  PIN_button_B    = 9;// указываем номер вывода arduino, к которому подключена кнопка B
-      uint16_t TIM_Button_A    = 0;// время удержания кнопки A (в сотых долях секунды)
-      uint16_t TIM_Button_B    = 0;// время удержания кнопки B (в сотых долях секунды)
-      uint32_t TIM_mode_ACCESS = 0;// время установки флага FLG_mode_ACCESS указывающего о необходимости открытия замка
-      int      ACK_finger_FUN  = 0;// результат выполнения функции библиотеки Adafruit_Fingerprint
-      uint8_t  VAR_mode_MENU   = 0;// текущий режим вывода меню
-      uint8_t  VAR_count_ID    = 0;// количество найденных ID в базе
-      uint8_t  VAR_first_ID    = 0;// номер первого выведенного ID из всех найденных
-      uint8_t  VAR_this_ID     = 0;// номер ID, шаблон которого требуется сохранить/удалить
-      uint8_t  VAR_array_ID[162];// массив найденных ID в базе
-      bool     FLG_result_FUN  = 0;// флаг указывающий на результат сохранения шаблона
-      bool     FLG_mode_ACCESS = 0;// флаг указывающий о необходимости открытия замка
-      bool     FLG_state_WORK  = 1;                                        // флаг указывающий о состоянии работы замка
-      bool     FLG_display_UPD = 1;                                        // флаг указывающий о необходимости обновления информации на дисплее
+//***************************** Глобальные константы *******************************************************
+const uint8_t  pinGreenLed    = A4;// пин, к которому подключен  зелёный светодиод
+const uint8_t  pinRedLed  = A3;// пин, к которому подключен  красный светодиод
+
+const uint8_t  pinBeep   = 6;// пин, к которому подключен зуммер
+const uint8_t  pinKey    = A5;// пин, к которому подключен ключ
+
+const uint8_t  pinButtonA    = 8;// пин, к которому подключена кнопка A
+const uint8_t  pinButtonB    = 9;// пин, к которому подключена кнопка B
+//**********************************************************************************************************
+
+//***************************** Глобальные переменные ******************************************************
+uint16_t timeButtonA    = 0;// время удержания кнопки A (в сотых долях секунды)
+uint16_t TIM_Button_B    = 0;// время удержания кнопки B (в сотых долях секунды)
+
+uint32_t TIM_mode_ACCESS = 0;// время установки флага FLG_mode_ACCESS указывающего о необходимости открытия замка
+int      ACK_finger_FUN  = 0;// результат выполнения функции библиотеки Adafruit_Fingerprint
+
+uint8_t  VAR_mode_MENU   = 0;// текущий режим вывода меню
+
+uint8_t  VAR_count_ID    = 0;// количество найденных ID в базе
+uint8_t  VAR_first_ID    = 0;// номер первого выведенного ID из всех найденных
+uint8_t  VAR_this_ID     = 0;// номер ID, шаблон которого требуется сохранить/удалить
+uint8_t  VAR_array_ID[162];// массив найденных ID в базе
+
+bool     FLG_result_FUN  = 0;// флаг указывающий на результат сохранения шаблона
+bool     FLG_mode_ACCESS = 0;// флаг указывающий о необходимости открытия замка
+bool     FLG_state_WORK  = 1;// флаг указывающий о состоянии работы замка
+bool     FLG_display_UPD = 1;// флаг указывающий о необходимости обновления информации на дисплее
 //**********************************************************************************************************
 
 void setup(){
-  pinMode(PIN_button_A,    INPUT);                                         // устанавливаем режим работы вывода PIN_button_A,   как "вход"
-  pinMode(PIN_button_B,    INPUT);                                         // устанавливаем режим работы вывода PIN_button_B,   как "вход"
-  pinMode(PIN_G_OPEN,   OUTPUT);                                         // устанавливаем режим работы вывода PIN_led_OPEN,   как "выход"
-  pinMode(PIN_B_CLOSED, OUTPUT);                                         // устанавливаем режим работы вывода PIN_led_CLOSED, как "выход"
-  pinMode(PIN_key_OPEN,   OUTPUT);                                         // устанавливаем режим работы вывода PIN_key_OPEN,   как "выход"
+  pinMode(pinButtonA,    INPUT);// устанавливаем режим работы вывода pinButtonA,   как "вход"
+  pinMode(pinButtonB,    INPUT);// устанавливаем режим работы вывода pinButtonB,   как "вход"
+  pinMode(pinGreenLed,   OUTPUT);// устанавливаем режим работы вывода PIN_led_OPEN,   как "выход"
+  pinMode(pinRedLed, OUTPUT);// устанавливаем режим работы вывода PIN_led_CLOSED, как "выход"
+  pinMode(pinKey,   OUTPUT);// устанавливаем режим работы вывода pinKey,   как "выход"
 
-  lcd.begin(16, 2);
+  myBluetooth.begin(9600);  // инициируем модуль Bluetooth, с подключением через программный UART на скорости 9600 (скорость модуля по умолчанию)
+  myBluetooth.println("hello");
+
+  myLCD.begin(16, 2); // инициируем модуль lcd, 2е строки и 16 столбцов
   //Выводится приветствие на LCD
-  lcd.print("    ПРИВЕТ!!!  ");
-  lcd.setCursor(0, 1);
-  lcd.print("     ВИВТ!      ");
+  myLCD.print("    ПРИВЕТ!!!  ");
+  myLCD.setCursor(0, 1);
+  myLCD.print("     ВИВТ!      ");
   
   delay(1000);                                                              // обязательная задержка перед инициализацией модуля отпечатков пальцев
   finger.begin(57600);                                                     // инициируем модуль отпечатков пальцев, с подключением через программный UART на скорости 57600 (скорость модуля по умолчанию)
   
-  lcd.clear();                                                             // стираем информацию с дисплея
-  lcd.setCursor(0, 0);        lcd.print(F("Поиск сенсора..."));              // выводим текст "Scan sensor..."
-  lcd.setCursor(0, 1);                                                     // устанавливаем курсор в позицию: 0 столбец, 1 строка
-  if(finger.verifyPassword()){
-    lcd.print(F("Сенсор Обнаружен")); // если модуль отпечатков обнаружен, то выводим сообщение "сенсор обнаружен"
+  myLCD.clear();                                                             // стираем информацию с дисплея
+  myLCD.setCursor(0, 0);        myLCD.print(F("Поиск сенсора..."));              // выводим текст "Scan sensor..."
+  myLCD.setCursor(0, 1);                                                     // устанавливаем курсор в позицию: 0 столбец, 1 строка
+  if( finger.verifyPassword() ){
+    myLCD.print(F("Сенсор Обнаружен")); // если модуль отпечатков обнаружен, то выводим сообщение "сенсор обнаружен"
   }               
-  else{// если модуль отпечатков не обнаружен
-    lcd.print(F("Сенсора нет(((")); //выводим сообщение "сенсор не обнаружен"
-    while(1); //входим в бесконечный цикл: while(1);
-  } 
+//  else{// если модуль отпечатков не обнаружен
+//    myLCD.print(F("Сенсора нет(((")); //выводим сообщение "сенсор не обнаружен"
+//    while(1); //входим в бесконечный цикл: while(1);
+//  } 
   delay(1000);                                                             // необязательная задержка, чтоб можно было прочитать сообщение об обнаружении модуля
 }
 
 void loop(){
 // Передаём управление кнопкам
    Func_buttons_control();                                                 // вызываем функцию Func_buttons_control();
+
 // Обновляем информацию на дисплее
    if(FLG_display_UPD){Func_display_show();}                               // если установлен флаг FLG_display_UPD (нужно обновить информацию на дисплее), то вызываем функцию Func_display_show();
+
 // Общаемся с модулем отпечатков пальцев
    Func_sensor_communication();                                            // вызываем функцию Func_sensor_communication();
-//digitalWrite(PIN_key_OPEN,   HIGH); 
+
+  if(myBluetooth.available()>0){
+    myLCD.print("available");
+    delay(500);
+    if(myBluetooth.parseInt() == 1){
+      FLG_mode_ACCESS = 1;
+      digitalWrite(pinKey,   HIGH); 
+      delay(500);
+    }
+    if(myBluetooth.parseInt() == 0){
+      FLG_mode_ACCESS = 0;
+    }
+  }
+
+//digitalWrite(pinKey,   HIGH); 
+
 // Управляем замком, светодиодами и зуммером
    if(FLG_state_WORK){                                                     // если установлен флаг FLG_state_WORK (замок работает, «State: ENABLE»), то ...
-     digitalWrite(PIN_key_OPEN,   FLG_mode_ACCESS);                       // если используется электромагнитный замок, где 0-открыто, а 1-закрыто, то второй параметр указывается с восклицательным знаком: digitalWrite(PIN_key_OPEN, !FLG_mode_ACCESS);
-     //digitalWrite(PIN_key_OPEN,   LOW); 
-     digitalWrite(PIN_G_OPEN,   !FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_OPEN
-     digitalWrite(PIN_B_CLOSED, FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_CLOSED
-     if(FLG_mode_ACCESS){tone(PIN_beep_OPEN, 2000, 100);}                  // если установлен флаг FLG_mode_ACCESS (замок открыт), то отправляем меандр на вывод PIN_beep_OPEN (к которому подключён Trema зуммер) длительностью 100 мс с частотой 2000 Гц
+     digitalWrite(pinKey,   FLG_mode_ACCESS);                       // если используется электромагнитный замок, где 0-открыто, а 1-закрыто, то второй параметр указывается с восклицательным знаком: digitalWrite(pinKey, !FLG_mode_ACCESS);
+     //digitalWrite(pinKey,   LOW); 
+     digitalWrite(pinGreenLed,   !FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_OPEN
+     digitalWrite(pinRedLed, FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_CLOSED
+     if(FLG_mode_ACCESS){tone(pinBeep, 2000, 100);}                  // если установлен флаг FLG_mode_ACCESS (замок открыт), то отправляем меандр на вывод pinBeep (к которому подключён Trema зуммер) длительностью 100 мс с частотой 2000 Гц
    }
+
 // Сбрасываем флаг FLG_mode_ACCESS, указывающий о необходимости открытия замка, через 5 секунд после его установки
    if(FLG_mode_ACCESS){
      if( TIM_mode_ACCESS      >millis()){FLG_mode_ACCESS=0; FLG_display_UPD = 1; if(VAR_mode_MENU==1){VAR_mode_MENU=0;}}
@@ -94,53 +128,53 @@ void loop(){
 
 // Функция управления кнопками:
 void Func_buttons_control(){
-  TIM_Button_A=0;                                                                                                                                    // время удержания кнопки A (в сотых долях секунды)
+  timeButtonA=0;                                                                                                                                    // время удержания кнопки A (в сотых долях секунды)
   TIM_Button_B=0;                                                                                                                                    // время удержания кнопки B (в сотых долях секунды)
   uint8_t f=0;                                                                                                                                       // 1-зафиксировано нажатие кнопки, 2-зафиксировано нажатие кнопки и очищен дисплей, 3-обе кнопки удерживались дольше 2 сек
-  if(digitalRead(PIN_button_A)){noTone(PIN_beep_OPEN);}                                                                                              // если нажата кнопка A то отключаем меандр на выводе PIN_beep_OPEN
-  if(digitalRead(PIN_button_B)){noTone(PIN_beep_OPEN);}                                                                                              // если нажата кнопка B то отключаем меандр на выводе PIN_beep_OPEN
-  while(digitalRead(PIN_button_A)||digitalRead(PIN_button_B)){                                                                                       // если нажата кнопка A и/или кнопка B, то создаём цикл, пока кнопка(и) не будет(ут) отпущена(ы)
-     if(digitalRead(PIN_button_A)&&TIM_Button_A<65535){TIM_Button_A++; if(f==0){f=1;}}                                                               // если удерживается кнопка A, то увеличиваем время её удержания
-     if(digitalRead(PIN_button_B)&&TIM_Button_B<65535){TIM_Button_B++; if(f==0){f=1;}}                                                               // если удерживается кнопка B, то увеличиваем время её удержания
-     if(f==1){lcd.clear(); f=2;}                                                                                                                     // если зафиксировано нажатие кнопки, то стираем информацию с дисплея
-     if(f<3 && TIM_Button_A>200 && TIM_Button_B>200){VAR_mode_MENU=0; Func_display_show(); f=3;}                                                     // если обе кнопки удерживаются дольше 2 сек, то выходим из меню (VAR_mode_MENU=0) и обновляем информацию на дисплее (Func_display_show();)
+  if(digitalRead(pinButtonA)){noTone(pinBeep);}                                                                                              // если нажата кнопка A то отключаем меандр на выводе pinBeep
+  if(digitalRead(pinButtonB)){noTone(pinBeep);}                                                                                              // если нажата кнопка B то отключаем меандр на выводе pinBeep
+  while(digitalRead(pinButtonA)||digitalRead(pinButtonB)){                                                                                       // если нажата кнопка A и/или кнопка B, то создаём цикл, пока кнопка(и) не будет(ут) отпущена(ы)
+     if(digitalRead(pinButtonA)&&timeButtonA<65535){timeButtonA++; if(f==0){f=1;}}                                                               // если удерживается кнопка A, то увеличиваем время её удержания
+     if(digitalRead(pinButtonB)&&TIM_Button_B<65535){TIM_Button_B++; if(f==0){f=1;}}                                                               // если удерживается кнопка B, то увеличиваем время её удержания
+     if(f==1){myLCD.clear(); f=2;}                                                                                                                     // если зафиксировано нажатие кнопки, то стираем информацию с дисплея
+     if(f<3 && timeButtonA>200 && TIM_Button_B>200){VAR_mode_MENU=0; Func_display_show(); f=3;}                                                     // если обе кнопки удерживаются дольше 2 сек, то выходим из меню (VAR_mode_MENU=0) и обновляем информацию на дисплее (Func_display_show();)
      delay(10);                                                                                                                                      // пропускаем 0,01с (подавляем дребезг кнопок)
   }
   if(f==2){                                                                                  FLG_display_UPD = 1;                                    // если зафиксировано нажатие на кнопку, то ...
     switch(VAR_mode_MENU){
-      case  0: /* вне меню */                         if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // войти в меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B==0){FLG_mode_ACCESS = 1; TIM_mode_ACCESS=millis();        } // открыть замок
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){FLG_mode_ACCESS = 1; TIM_mode_ACCESS=millis();        } // открыть замок
+      case  0: /* вне меню */                         if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // войти в меню
+                                                      if(timeButtonA >0 && TIM_Button_B==0){FLG_mode_ACCESS = 1; TIM_mode_ACCESS=millis();        } // открыть замок
+                                                      if(timeButtonA==0 && TIM_Button_B >0){FLG_mode_ACCESS = 1; TIM_mode_ACCESS=millis();        } // открыть замок
       break;
-      case 10: /* 1 уровень меню - вкл/выкл замок  */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 99;                                 } // перейти к  предыдущему пункту меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 20;                                 } // перейти к  следующему  пункту меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 11;                                 } // выбрать    текущий     пункт  меню
+      case 10: /* 1 уровень меню - вкл/выкл замок  */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 99;                                 } // перейти к  предыдущему пункту меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 20;                                 } // перейти к  следующему  пункту меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 11;                                 } // выбрать    текущий     пункт  меню
       break;
-      case 11: /* 2 уровень меню - вкл/выкл замок  */ if(TIM_Button_A >0 && TIM_Button_B==0){FLG_state_WORK  = FLG_state_WORK?0:1;                 } // вкл/выкл
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){FLG_state_WORK  = FLG_state_WORK?0:1;                 } // вкл/выкл
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // выйти   из текущего    пункта меню
+      case 11: /* 2 уровень меню - вкл/выкл замок  */ if(timeButtonA >0 && TIM_Button_B==0){FLG_state_WORK  = FLG_state_WORK?0:1;                 } // вкл/выкл
+                                                      if(timeButtonA==0 && TIM_Button_B >0){FLG_state_WORK  = FLG_state_WORK?0:1;                 } // вкл/выкл
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // выйти   из текущего    пункта меню
       break;
-      case 20: /* 1 уровень меню - показать ID     */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 10;                                 } // перейти к  предыдущему пункту меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // перейти к  следующему  пункту меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 21;                                 } // выбрать    текущий     пункт  меню
+      case 20: /* 1 уровень меню - показать ID     */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 10;                                 } // перейти к  предыдущему пункту меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // перейти к  следующему  пункту меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 21;                                 } // выбрать    текущий     пункт  меню
       break;
 //    case 21: /* 2 уровень меню - показать ID     */ это поиск ID с надписью Please wait ...
 //                                                    без реакции на нажатие кнопок
 //
-      case 22: /* 3 уровень меню - показать ID     */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_first_ID   -= VAR_first_ID>0?3:0;                 } // уменьшить первый выводимый на дисплей ID
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_first_ID   += ((VAR_first_ID+3)<VAR_count_ID)?3:0;} // увеличить первый выводимый на дисплей ID
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 20;                                 } // выйти   из текущего    пункта меню
+      case 22: /* 3 уровень меню - показать ID     */ if(timeButtonA >0 && TIM_Button_B==0){VAR_first_ID   -= VAR_first_ID>0?3:0;                 } // уменьшить первый выводимый на дисплей ID
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_first_ID   += ((VAR_first_ID+3)<VAR_count_ID)?3:0;} // увеличить первый выводимый на дисплей ID
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 20;                                 } // выйти   из текущего    пункта меню
       break;
-      case 30: /* 1 уровень меню - сохранить ID    */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 20;                                 } // перейти к  предыдущему пункту меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 40;                                 } // перейти к  следующему  пункту меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 31;                                 } // выбрать    текущий     пункт  меню
+      case 30: /* 1 уровень меню - сохранить ID    */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 20;                                 } // перейти к  предыдущему пункту меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 40;                                 } // перейти к  следующему  пункту меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 31;                                 } // выбрать    текущий     пункт  меню
       break;
 //    case 31: /* 2 уровень меню - сохранить ID    */ это поиск ID с надписью Please wait ...
 //                                                    без реакции на нажатие кнопок
 //
-      case 32: /* 3 уровень меню - сохранить ID    */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_this_ID    -= VAR_this_ID>0?1:0;                  } // уменьшить ID по которому будет сохранён отпечаток
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_this_ID    += VAR_this_ID<162?1:0;                } // увеличить ID по которому будет сохранён отпечаток
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 33;                                 } // выбрать    текущий     пункт  меню
+      case 32: /* 3 уровень меню - сохранить ID    */ if(timeButtonA >0 && TIM_Button_B==0){VAR_this_ID    -= VAR_this_ID>0?1:0;                  } // уменьшить ID по которому будет сохранён отпечаток
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_this_ID    += VAR_this_ID<162?1:0;                } // увеличить ID по которому будет сохранён отпечаток
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 33;                                 } // выбрать    текущий     пункт  меню
       break;
 //    case 33: /* 4 уровень меню - сохранить ID    */ это ожидание прикладываемого пальца (в первый раз) с надписью Put finger ...
 //                                                    без реакции на нажатие кнопок
@@ -160,33 +194,33 @@ void Func_buttons_control(){
 //    case 38: /* 9 уровень меню - сохранить ID    */ это ожидание создания и сохранения шаблона с надписью Saved ...
 //                                                    без реакции на нажатие кнопок
 //
-      case 39: /*10 уровень меню - сохранить ID    */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
+      case 39: /*10 уровень меню - сохранить ID    */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 30;                                 } // в начало   текущего    пункта меню
       break;
-      case 40: /* 1 уровень меню - удалить ID      */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 30;                                 } // перейти к  предыдущему пункту меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 99;                                 } // перейти к  следующему  пункту меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 41; VAR_this_ID=0;                  } // выбрать    текущий     пункт  меню
+      case 40: /* 1 уровень меню - удалить ID      */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 30;                                 } // перейти к  предыдущему пункту меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 99;                                 } // перейти к  следующему  пункту меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 41; VAR_this_ID=0;                  } // выбрать    текущий     пункт  меню
       break;
-      case 41: /* 2 уровень меню - удалить ID      */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_this_ID     = VAR_this_ID==255?0:255;             } // 255-all / 0-one
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_this_ID     = VAR_this_ID==255?0:255;             } // 255-all / 0-one
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = VAR_this_ID==255?42:43;             } // выбрать    текущий     пункт  меню
+      case 41: /* 2 уровень меню - удалить ID      */ if(timeButtonA >0 && TIM_Button_B==0){VAR_this_ID     = VAR_this_ID==255?0:255;             } // 255-all / 0-one
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_this_ID     = VAR_this_ID==255?0:255;             } // 255-all / 0-one
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = VAR_this_ID==255?42:43;             } // выбрать    текущий     пункт  меню
       break;
 //    case 42: /* 3 уровень меню - удалить ID      */ это удаление всех ID с надписью Please wait ...
 //                                                    без реакции на нажатие кнопок   
 //
 //    case 43: /* 4 уровень меню - удалить ID      */ это поиск ID с надписью Please wait ...
 //                                                    без реакции на нажатие кнопок
-      case 44: /* 5 уровень меню - удалить ID      */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_this_ID    -= VAR_this_ID>0?1:0;                  } // уменьшить ID по которому будет удалён отпечаток
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_this_ID    += VAR_this_ID<162?1:0;                } // увеличить ID по которому будет удалён отпечаток
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 45;                                 } // выбрать    текущий     пункт  меню
+      case 44: /* 5 уровень меню - удалить ID      */ if(timeButtonA >0 && TIM_Button_B==0){VAR_this_ID    -= VAR_this_ID>0?1:0;                  } // уменьшить ID по которому будет удалён отпечаток
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_this_ID    += VAR_this_ID<162?1:0;                } // увеличить ID по которому будет удалён отпечаток
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 45;                                 } // выбрать    текущий     пункт  меню
       break;
 //    case 45: /* 6 уровень меню - удалить ID      */ это удаление выбранного ID с надписью Please wait ...
 //                                                    без реакции на нажатие кнопок   
 //
-      case 99: /* 1 уровень меню - выйти из меню   */ if(TIM_Button_A >0 && TIM_Button_B==0){VAR_mode_MENU   = 40;                                 } // перейти к  предыдущему пункту меню
-                                                      if(TIM_Button_A==0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // перейти к  следующему  пункту меню
-                                                      if(TIM_Button_A >0 && TIM_Button_B >0){VAR_mode_MENU   = 0;                                  } // выбрать    текущий     пункт  меню
+      case 99: /* 1 уровень меню - выйти из меню   */ if(timeButtonA >0 && TIM_Button_B==0){VAR_mode_MENU   = 40;                                 } // перейти к  предыдущему пункту меню
+                                                      if(timeButtonA==0 && TIM_Button_B >0){VAR_mode_MENU   = 10;                                 } // перейти к  следующему  пункту меню
+                                                      if(timeButtonA >0 && TIM_Button_B >0){VAR_mode_MENU   = 0;                                  } // выбрать    текущий     пункт  меню
       break;
     }
   }
@@ -195,85 +229,85 @@ void Func_buttons_control(){
 // функция вывода информации на дисплей
 void Func_display_show(){ 
   FLG_display_UPD=0;        
-  lcd.clear();
+  myLCD.clear();
   switch(VAR_mode_MENU){
     case  0: /* вне меню */                   
-                                                    lcd.setCursor(0, 0); lcd.print(F("ДОСТУП:")); lcd.print(FLG_mode_ACCESS ? F("ОТКРЫТО") : F("ЗАКРЫТО" ) );
+                                                    myLCD.setCursor(0, 0); myLCD.print(F("ДОСТУП:")); myLCD.print(FLG_mode_ACCESS ? F("ОТКРЫТО") : F("ЗАКРЫТО" ) );
                                                     
     break;                                         
-    case  1: /* замок открыт отпечатком */          lcd.setCursor(0, 0); lcd.print(F("НАЙДЕННЫЕ ID:")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("ДОСТУП: ОТКРЫТО"));
+    case  1: /* замок открыт отпечатком */          myLCD.setCursor(0, 0); myLCD.print(F("НАЙДЕННЫЕ ID:")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("ДОСТУП: ОТКРЫТО"));
     break;
-    case 10: /* 1 уровень меню - вкл/выкл замок  */ lcd.setCursor(0, 0); lcd.print(F("  <   МЕНЮ   > "));
+    case 10: /* 1 уровень меню - вкл/выкл замок  */ myLCD.setCursor(0, 0); myLCD.print(F("  <   МЕНЮ   > "));
     break;
     
-    case 20: /* 1 уровень меню - показать ID     */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>ПОКАЗАТЬ ID"));
+    case 20: /* 1 уровень меню - показать ID     */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>ПОКАЗАТЬ ID"));
     break;
-    case 21: /* 2 уровень меню - показать ID     */ lcd.setCursor(0, 0); lcd.print(F("Поиск Сенсора..."));
-                                                    lcd.setCursor(0, 1); lcd.print(F("Подождите..."));
+    case 21: /* 2 уровень меню - показать ID     */ myLCD.setCursor(0, 0); myLCD.print(F("Поиск Сенсора..."));
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Подождите..."));
     break;
-    case 22: /* 3 уровень меню - показать ID     */ lcd.setCursor(0, 0); lcd.print(F("НАЙДЕННЫ ")); lcd.print(VAR_count_ID); lcd.print(F(" ID:"));
-                                                    lcd.setCursor(0, 1); lcd.print(VAR_first_ID==0?F(""):F("<")); for(int i=0; i<3; i++){if(VAR_count_ID>VAR_first_ID+i){lcd.print(i==0?F(" "):F(",")); if(VAR_array_ID[(VAR_first_ID+i)]<100){lcd.print(F(""));} if(VAR_array_ID[(VAR_first_ID+i)]<10){lcd.print(F(""));} lcd.print(VAR_array_ID[(VAR_first_ID+i)]);}} if(VAR_count_ID>(VAR_first_ID+3)){lcd.setCursor(15,1); lcd.print(F(">"));}
+    case 22: /* 3 уровень меню - показать ID     */ myLCD.setCursor(0, 0); myLCD.print(F("НАЙДЕННЫ ")); myLCD.print(VAR_count_ID); myLCD.print(F(" ID:"));
+                                                    myLCD.setCursor(0, 1); myLCD.print(VAR_first_ID==0?F(""):F("<")); for(int i=0; i<3; i++){if(VAR_count_ID>VAR_first_ID+i){myLCD.print(i==0?F(" "):F(",")); if(VAR_array_ID[(VAR_first_ID+i)]<100){myLCD.print(F(""));} if(VAR_array_ID[(VAR_first_ID+i)]<10){myLCD.print(F(""));} myLCD.print(VAR_array_ID[(VAR_first_ID+i)]);}} if(VAR_count_ID>(VAR_first_ID+3)){myLCD.setCursor(15,1); myLCD.print(F(">"));}
     break;
-    case 30: /* 1 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>ДОБАВИТЬ ID"));
+    case 30: /* 1 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>ДОБАВИТЬ ID"));
     break;
-    case 31: /* 2 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("Поиск Сенсора..."));
-                                                    lcd.setCursor(0, 1); lcd.print(F("Подождите..."));
+    case 31: /* 2 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("Поиск Сенсора..."));
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Подождите..."));
     break;
-    case 32: /* 3 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>NewID>SetID"));
-                                                    lcd.setCursor(6, 1); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(4, 1); if(VAR_this_ID>0  ){lcd.print(F("<"));}
-                                                    lcd.setCursor(10,1); if(VAR_this_ID<162){lcd.print(F(">"));}
+    case 32: /* 3 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>NewID>SetID"));
+                                                    myLCD.setCursor(6, 1); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(4, 1); if(VAR_this_ID>0  ){myLCD.print(F("<"));}
+                                                    myLCD.setCursor(10,1); if(VAR_this_ID<162){myLCD.print(F(">"));}
     break;
-    case 33: /* 4 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Приложите палец..."));
+    case 33: /* 4 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Приложите палец..."));
                                                     delay(1000);
     break;
-    case 34: /* 5 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Преобразование..."));
+    case 34: /* 5 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Преобразование..."));
     break;
-    case 35: /* 6 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F("0"));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Уберите палец..."));
+    case 35: /* 6 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F("0"));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Уберите палец..."));
                                                     delay(1000);
     break;
-    case 36: /* 7 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Приложите палец..."));
+    case 36: /* 7 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Приложите палец..."));
                                                     delay(1000);
     break;
-    case 37: /* 8 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Преобразование..."));
+    case 37: /* 8 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Преобразование..."));
     break;
-    case 38: /* 9 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("СОХРАНЕНИЕ ..."));
+    case 38: /* 9 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("СОХРАНЕНИЕ ..."));
     break;
-    case 39: /*10 уровень меню - сохранить ID    */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(FLG_result_FUN?F("Добавлено!"):F("Ошибка :("));
+    case 39: /*10 уровень меню - сохранить ID    */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >ДОБАВИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(FLG_result_FUN?F("Добавлено!"):F("Ошибка :("));
     break;
-    case 40: /* 1 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ >УДАЛИТЬ ID"));
+    case 40: /* 1 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ >УДАЛИТЬ ID"));
     break;
-    case 41: /* 2 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>УДАЛИТЬ"));
-                                                    lcd.setCursor(13,0); lcd.print(F("ВСЕ"));
-                                                    lcd.setCursor(13,1); lcd.print(F("1"));
-                                                    lcd.setCursor(11, VAR_this_ID==255?0:1); lcd.print(F(">"));
+    case 41: /* 2 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>УДАЛИТЬ"));
+                                                    myLCD.setCursor(13,0); myLCD.print(F("ВСЕ"));
+                                                    myLCD.setCursor(13,1); myLCD.print(F("1"));
+                                                    myLCD.setCursor(11, VAR_this_ID==255?0:1); myLCD.print(F(">"));
     break;
-    case 42: /* 3 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("УДАЛЕНИЕ ID ..."));
-                                                    lcd.setCursor(0, 1); lcd.print(F("Подождите..."));
+    case 42: /* 3 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("УДАЛЕНИЕ ID ..."));
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Подождите..."));
     break;
-    case 43: /* 4 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("Поиск Сенсора ..."));
-                                                    lcd.setCursor(0, 1); lcd.print(F("Подождите..."));
+    case 43: /* 4 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("Поиск Сенсора ..."));
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Подождите..."));
     break;
-    case 44: /* 5 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>УДАЛИТЬ 1ID"));
-                                                    lcd.setCursor(6, 1); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(4, 1); if(VAR_this_ID>0  ){lcd.print(F("<"));}
-                                                    lcd.setCursor(10,1); if(VAR_this_ID<162){lcd.print(F(">"));}
+    case 44: /* 5 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>УДАЛИТЬ 1ID"));
+                                                    myLCD.setCursor(6, 1); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(4, 1); if(VAR_this_ID>0  ){myLCD.print(F("<"));}
+                                                    myLCD.setCursor(10,1); if(VAR_this_ID<162){myLCD.print(F(">"));}
     break;
-    case 45: /* 6 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ>УДАЛИТЬ ID ")); if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(F("Подождите..."));
+    case 45: /* 6 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ>УДАЛИТЬ ID ")); if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(F("Подождите..."));
     break;
-    case 49: /*10 уровень меню - удалить ID      */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ> УДАЛИТЬ ")); if(VAR_this_ID==255){lcd.print(F("Все ID"));}else{lcd.print(F("ID "));} if(VAR_this_ID<100){lcd.print(F(""));} if(VAR_this_ID<10){lcd.print(F(""));} lcd.print(VAR_this_ID);
-                                                    lcd.setCursor(0, 1); lcd.print(FLG_result_FUN?F("Палец удален!"):F("Ошибка :("));
+    case 49: /*10 уровень меню - удалить ID      */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ> УДАЛИТЬ ")); if(VAR_this_ID==255){myLCD.print(F("Все ID"));}else{myLCD.print(F("ID "));} if(VAR_this_ID<100){myLCD.print(F(""));} if(VAR_this_ID<10){myLCD.print(F(""));} myLCD.print(VAR_this_ID);
+                                                    myLCD.setCursor(0, 1); myLCD.print(FLG_result_FUN?F("Палец удален!"):F("Ошибка :("));
     break;
-    case 99: /* 1 уровень меню - выйти из меню   */ lcd.setCursor(0, 0); lcd.print(F("МЕНЮ > ВЫХОД"));
+    case 99: /* 1 уровень меню - выйти из меню   */ myLCD.setCursor(0, 0); myLCD.print(F("МЕНЮ > ВЫХОД"));
     break;
   }
 }
