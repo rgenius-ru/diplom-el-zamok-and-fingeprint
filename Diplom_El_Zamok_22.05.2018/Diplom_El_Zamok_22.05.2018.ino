@@ -13,10 +13,6 @@ LiquidCrystalRus myLCD(4, 5, 10, 11, 12, 13);
 //поддерживающие прерывание PCINTx
 SoftwareSerial myUART(2, 3);        
 
-//объявляется объект типа SoftwareSerial с параметрами (Rx, Tx). Можно указывать любые выводы, 
-//поддерживающие прерывание PCINTx
-SoftwareSerial myBluetooth(A0, A1);   
-
 // объявляется объект типа Adafruit_Fingerprint (ptrSerial). ptrSerial - ссылка на объект UART 
 //к которому подключен модуль отпечатка пальцев
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&myUART);
@@ -34,23 +30,25 @@ const uint8_t  pinButtonB    = 9;// пин, к которому подключе
 //**********************************************************************************************************
 
 //***************************** Глобальные переменные ******************************************************
-uint16_t timeButtonA    = 0;// время удержания кнопки A (в сотых долях секунды)
-uint16_t TIM_Button_B    = 0;// время удержания кнопки B (в сотых долях секунды)
+uint16_t  timeButtonA    = 0;// время удержания кнопки A (в сотых долях секунды)
+uint16_t  TIM_Button_B    = 0;// время удержания кнопки B (в сотых долях секунды)
 
-uint32_t TIM_mode_ACCESS = 0;// время установки флага FLG_mode_ACCESS указывающего о необходимости открытия замка
-int      ACK_finger_FUN  = 0;// результат выполнения функции библиотеки Adafruit_Fingerprint
+uint32_t  TIM_mode_ACCESS = 0;// время установки флага FLG_mode_ACCESS указывающего о необходимости открытия замка
+int       ACK_finger_FUN  = 0;// результат выполнения функции библиотеки Adafruit_Fingerprint
 
-uint8_t  VAR_mode_MENU   = 0;// текущий режим вывода меню
+uint8_t   VAR_mode_MENU   = 0;// текущий режим вывода меню
 
-uint8_t  VAR_count_ID    = 0;// количество найденных ID в базе
-uint8_t  VAR_first_ID    = 0;// номер первого выведенного ID из всех найденных
-uint8_t  VAR_this_ID     = 0;// номер ID, шаблон которого требуется сохранить/удалить
-uint8_t  VAR_array_ID[162];// массив найденных ID в базе
+uint8_t   VAR_count_ID    = 0;// количество найденных ID в базе
+uint8_t   VAR_first_ID    = 0;// номер первого выведенного ID из всех найденных
+uint8_t   VAR_this_ID     = 0;// номер ID, шаблон которого требуется сохранить/удалить
+uint8_t   VAR_array_ID[162];// массив найденных ID в базе
 
-bool     FLG_result_FUN  = 0;// флаг указывающий на результат сохранения шаблона
-bool     FLG_mode_ACCESS = 0;// флаг указывающий о необходимости открытия замка
-bool     FLG_state_WORK  = 1;// флаг указывающий о состоянии работы замка
-bool     FLG_display_UPD = 1;// флаг указывающий о необходимости обновления информации на дисплее
+bool      FLG_result_FUN  = 0;// флаг указывающий на результат сохранения шаблона
+bool      FLG_mode_ACCESS = 0;// флаг указывающий о необходимости открытия замка
+bool      FLG_state_WORK  = 1;// флаг указывающий о состоянии работы замка
+bool      FLG_display_UPD = 1;// флаг указывающий о необходимости обновления информации на дисплее
+
+String    str = ""; //строка для работы с bluetooth модуль
 //**********************************************************************************************************
 
 void setup(){
@@ -60,8 +58,9 @@ void setup(){
   pinMode(pinRedLed, OUTPUT);// устанавливаем режим работы вывода PIN_led_CLOSED, как "выход"
   pinMode(pinKey,   OUTPUT);// устанавливаем режим работы вывода pinKey,   как "выход"
 
-  myBluetooth.begin(9600);  // инициируем модуль Bluetooth, с подключением через программный UART на скорости 9600 (скорость модуля по умолчанию)
-  myBluetooth.println("hello");
+  Serial.begin(9600);  // инициируем модуль Bluetooth, с подключением через программный UART на скорости 9600 (скорость модуля по умолчанию)
+  Serial.setTimeout(50);
+  Serial.println("Bluetooth connected.");
 
   myLCD.begin(16, 2); // инициируем модуль lcd, 2е строки и 16 столбцов
   //Выводится приветствие на LCD
@@ -78,10 +77,10 @@ void setup(){
   if( finger.verifyPassword() ){
     myLCD.print(F("Сенсор Обнаружен")); // если модуль отпечатков обнаружен, то выводим сообщение "сенсор обнаружен"
   }               
-//  else{// если модуль отпечатков не обнаружен
-//    myLCD.print(F("Сенсора нет(((")); //выводим сообщение "сенсор не обнаружен"
-//    while(1); //входим в бесконечный цикл: while(1);
-//  } 
+  else{// если модуль отпечатков не обнаружен
+    myLCD.print(F("Сенсора нет(((")); //выводим сообщение "сенсор не обнаружен"
+    while(1); //входим в бесконечный цикл: while(1);
+  } 
   delay(1000);                                                             // необязательная задержка, чтоб можно было прочитать сообщение об обнаружении модуля
 }
 
@@ -95,27 +94,22 @@ void loop(){
 // Общаемся с модулем отпечатков пальцев
    Func_sensor_communication();                                            // вызываем функцию Func_sensor_communication();
 
-  if(myBluetooth.available()>0){
-    myLCD.print("available");
-    delay(500);
-    if(myBluetooth.parseInt() == 1){
-      FLG_mode_ACCESS = 1;
-      digitalWrite(pinKey,   HIGH); 
-      delay(500);
+  if(Serial.available()>0){
+    str = Serial.readString();
+    if(str == "1"){
+      FLG_mode_ACCESS = 1; 
+      TIM_mode_ACCESS = millis();
     }
-    if(myBluetooth.parseInt() == 0){
-      FLG_mode_ACCESS = 0;
+    if(str == "0"){
+      FLG_mode_ACCESS = 0; 
     }
   }
 
-//digitalWrite(pinKey,   HIGH); 
-
 // Управляем замком, светодиодами и зуммером
    if(FLG_state_WORK){                                                     // если установлен флаг FLG_state_WORK (замок работает, «State: ENABLE»), то ...
-     digitalWrite(pinKey,   FLG_mode_ACCESS);                       // если используется электромагнитный замок, где 0-открыто, а 1-закрыто, то второй параметр указывается с восклицательным знаком: digitalWrite(pinKey, !FLG_mode_ACCESS);
-     //digitalWrite(pinKey,   LOW); 
-     digitalWrite(pinGreenLed,   !FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_OPEN
-     digitalWrite(pinRedLed, FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу PIN_led_CLOSED
+     digitalWrite(pinKey,   FLG_mode_ACCESS);                       // если используется электромагнитный замок, где 0-открыто, а 1-закрыто, то второй параметр указывается с восклицательным знаком: digitalWrite(pinKey, !FLG_mode_ACCESS); 
+     digitalWrite(pinGreenLed,   !FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу pinGreenLed
+     digitalWrite(pinRedLed, FLG_mode_ACCESS);                       // включаем или выключаем светодиод подключённый к выводу pinRedLed
      if(FLG_mode_ACCESS){tone(pinBeep, 2000, 100);}                  // если установлен флаг FLG_mode_ACCESS (замок открыт), то отправляем меандр на вывод pinBeep (к которому подключён Trema зуммер) длительностью 100 мс с частотой 2000 Гц
    }
 
